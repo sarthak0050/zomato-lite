@@ -43,7 +43,7 @@ export async function GET(
     const latestReview = latestResult.length > 0 ? latestResult[0] : null;
 
     // Get all other reviews (newest first, excluding latest)
-    let reviews: { id: number; rating: number; comment: string; createdAt: string }[] = [];
+    let reviews;
     if (latestReview) {
       reviews = await sql`
         SELECT id, rating, comment, created_at as "createdAt"

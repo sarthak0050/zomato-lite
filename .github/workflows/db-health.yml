@@ -1,0 +1,42 @@
+name: Database Health & Demo Seed
+
+# Keeps the Zomato Lite database healthy and the demo dataset present.
+# - Runs weekly (Mon 06:00 UTC) and on demand via "Run workflow".
+# - Connects with DATABASE_URL (repo secret), verifies the schema, and
+#   idempotently seeds the demo restaurant/reviews only when they are missing
+#   (it never drops tables or touches user-written reviews).
+#
+# It does not commit code: the effect lives in the Neon database. A red run
+# means the DB needs attention (missing DATABASE_URL secret, schema issue,
+# or the Neon instance is down).
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: db-health
+  cancel-in-progress: false
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run review job (non-destructive health + seed)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: npx tsx scripts/review-job.ts --mode once

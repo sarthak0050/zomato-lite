@@ -1,36 +1,246 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🍔 Zomato Lite
 
-## Getting Started
+A minimal, working **restaurant + reviews** app that proves the core of
+Zomato's product loop in a few hundred lines: *a restaurant page → its
+rating and reviews → write your own review → it appears instantly.*
 
-First, run the development server:
+Built with **Next.js (App Router), TypeScript, Tailwind CSS v4, and Neon
+serverless Postgres**. No external review APIs, no auth, no complexity — just
+the review experience, done honestly.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+**Live demo:** deploy to Vercel + Neon (see [Deploy to Vercel](#deploy-to-vercel))
+— connect `DATABASE_URL`, run `npm run db:setup` once, and visit `/restaurant/1`.
+
+---
+
+## Table of contents
+
+1. [What it does (features)](#what-it-does-features)
+2. [Product decisions](#product-decisions)
+3. [Data model](#data-model)
+4. [Repository layout](#repository-layout)
+5. [Tech stack](#tech-stack)
+6. [Quickstart](#quickstart)
+7. [API reference](#api-reference)
+8. [The two database scripts](#the-two-database-scripts)
+9. [Scheduler: demo-data health & weekly cron](#scheduler-demo-data-health--weekly-cron)
+10. [Deploy to Vercel](#deploy-to-vercel)
+11. [Configuration](#configuration)
+12. [Removing the demo data](#removing-the-demo-data)
+13. [Contributing](#contributing)
+
+---
+
+## What it does (features)
+
+- **Restaurant page** (`/restaurant/[id]`) — header, big average rating with
+  review count, the **latest review highlighted**, then older reviews in
+  reverse-chronological order, and a working empty state ("No reviews yet. Be
+  the first!").
+- **Write a review** (`/review/[restaurantId]`) — 1–5 star picker + comment,
+  client-side submit gating, inline error handling, redirect back to the
+  restaurant page on success.
+- **Average rating computed fresh, never stored** — `AVG(rating)` runs on
+  every request, so the number can never go stale or out of sync.
+- **Server-side API** handing back exactly what the page needs:
+  - `GET /api/restaurants/:id` → restaurant + `averageRating` +
+    `totalReviews` + `latestReview` + `reviews`
+  - `POST /api/reviews` → validates and inserts a review
+- **Strict input validation** on every write (rating 1–5, non-empty comment,
+  restaurant must exist).
+- **Neon serverless Postgres** — connects straight from the edge; no local
+  database server to babysit.
+- **Health + demo seeding scheduler** — a non-destructive job keeps the schema
+  and demo data present (weekly via GitHub Actions).
+
+## Product decisions
+
+| Decision | Why |
+|---|---|
+| **Average + count computed per request, not stored** | Can never drift from the reviews table; accurate on day 1 and day 10,000 |
+| **Latest review highlighted on the page** | Mirrors real review platforms ("Recently reviewed") — the newest signal is what a visitor wants |
+| **Three validation checks on POST (rating, comment, restaurant)** | Every write path is guarded server-side, not just in the UI |
+| **`UNIQUE`-free, append-only reviews** | Reviews are immutable once written — no edit/delete in scope |
+| **SQL seed via an idempotent script, destructive setup as a separate script** | `db:setup` = fresh start (drops tables); `review-job` = never destroys data |
+| **Neon serverless driver** | Same `neon()` template-tag API everywhere — setup script, API routes, and the scheduler |
+| **Next.js App Router, RSC by default** | Data is fetched server-side; the review form is the only client component |
+
+## Data model
+
+```sql
+restaurants(id SERIAL PK, name TEXT, cuisine TEXT, area TEXT)
+reviews(id SERIAL PK, restaurant_id → restaurants.id,
+        rating INT CHECK 1..5, comment TEXT, created_at TIMESTAMPTZ DEFAULT NOW())
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Seed (via `npm run db:setup` or the scheduler):
+**Ludhiana Burrito** (Indian · Sector 32) with three reviews — *"Paneer burrito
+is unreal"* ★5, *"Good, but slow service"* ★4, *"Solid. Would repeat."* ★4.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Repository layout
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+.
+├── app/
+│   ├── page.tsx                        # home → link to /restaurant/1
+│   ├── restaurant/[id]/page.tsx        # restaurant page (server component)
+│   ├── review/[restaurantId]/page.tsx  # write-a-review form (client component)
+│   └── api/
+│       ├── reviews/route.ts            # POST /api/reviews
+│       └── restaurants/[id]/route.ts   # GET /api/restaurants/:id
+├── db/
+│   └── schema.sql                      # canonical schema + demo seed (readable copy)
+├── scripts/
+│   ├── db-setup.ts                     # DESTRUCTIVE fresh-start setup (drops tables)
+│   └── review-job.ts                   # NON-destructive health + seed scheduler
+├── .github/workflows/db-health.yml     # weekly cron health check + demo seed
+├── .env.local.example                  # copy → .env.local, add DATABASE_URL
+├── package.json / tsconfig / next.config.ts
+└── README.md
+```
 
-## Learn More
+## Tech stack
 
-To learn more about Next.js, take a look at the following resources:
+| Layer | Choice | Why |
+|---|---|---|
+| Framework | Next.js App Router (TypeScript) | RSC-first data fetching, file-based API routes |
+| UI | React 19 + Tailwind CSS v4 | Warm, neutral design system (Zomato-ish `#C45D3E` / `#FAFAF8`), zero UI lib |
+| Database | Postgres via **Neon serverless** | `@neondatabase/serverless` — one `neon(DATABASE_URL)` call, edge-safe |
+| Scripting | `tsx` | Run TypeScript DB scripts without a build step |
+| Env | `dotenv` + `.env.local` | Local creds stay out of git (`.env*` ignored) |
+| Scheduler | `review-job.ts` + GitHub Actions cron | Weekly, non-destructive demo-data health |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Quickstart
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+# 1. Create a free Neon project → copy the connection string
+#    https://neon.tech
 
-## Deploy on Vercel
+# 2. Configure the database URL
+cp .env.local.example .env.local
+#    → set DATABASE_URL=postgresql://USER:PASSWORD@HOST/dbname?sslmode=require
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+# 3. Create + seed the tables
+npm install
+npm run db:setup          # creates tables + seeds Ludhiana Burrito (destructive, one-time)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+# 4. Run the app
+npm run dev               # → http://localhost:3000
+```
+
+Open `http://localhost:3000` → click **Go to Ludhiana Burrito** → see ★4.3 and
+three reviews → **Write a review** → submit → it appears as the highlighted
+"Latest" review on the restaurant page.
+
+> **Non-destructive alternative:** instead of `npm run db:setup`, run
+> `npm run review:job -- --mode once` — it creates missing tables and seeds
+> demo data only when empty, and never drops anything.
+
+## API reference
+
+### `GET /api/restaurants/:id`
+
+Returns the restaurant plus its **computed fresh** aggregates:
+
+```json
+{
+  "name": "Ludhiana Burrito",
+  "cuisine": "Indian",
+  "area": "Sector 32",
+  "averageRating": 4.3,
+  "totalReviews": 3,
+  "latestReview": { "id": 3, "rating": 4, "comment": "Solid. Would repeat.", "createdAt": "..." },
+  "reviews": [ { "id": 2, "rating": 4, "comment": "Good, but slow service", "createdAt": "..." }, "..."]
+}
+```
+
+`404` when the restaurant does not exist.
+
+### `POST /api/reviews`
+
+```bash
+curl -X POST http://localhost:3000/api/reviews \
+  -H 'Content-Type: application/json' \
+  -d '{"restaurantId":1,"rating":5,"comment":"Finally tried it — worth the hype"}'
+```
+
+Validations, in order: `rating` is an integer 1–5 → `comment` is a non-empty
+string → `restaurantId` exists. Success: `201 {"success":true,"reviewId":4}`.
+Any failure returns a `400` with a specific `error` message (`500` only on a
+DB failure).
+
+## The two database scripts
+
+| Script | Command | Behaviour |
+|---|---|---|
+| `db-setup.ts` | `npm run db:setup` | **Destructive fresh start** — drops and recreates tables, reseeds demos. Use once at setup |
+| `review-job.ts` | `npm run review:job` | **Non-destructive** — creates missing tables, seeds only when empty; safe on every run |
+
+`review-job.ts` modes:
+
+```bash
+npm run review:job -- --mode check    # report health; exit 2 if demo data is missing
+npm run review:job -- --mode once     # fix any missing schema/seed idempotently (default)
+npm run review:job -- --mode daemon --interval-minutes 60   # poll forever
+```
+
+Exit codes: `0` healthy/applied, `1` failure, `2` check found something to fix.
+
+The scheduler **never touches user-written reviews** — it only seeds the demo
+restaurant if the table is empty and the 3 demo reviews if the reviews table is
+empty — so it is safe to run against a live database that already has real data.
+
+## Scheduler: demo-data health & weekly cron
+
+`.github/workflows/db-health.yml` runs **every Monday 06:00 UTC** (and on
+manual "Run workflow"): it installs dependencies and runs
+`npx tsx scripts/review-job.ts --mode once` with `DATABASE_URL` from the repo
+secret. The effect lives in the database (no commit-back needed); a red run
+means the DB needs attention.
+
+**One-time set up of the secret:** GitHub → **Settings → Secrets and
+variables → Actions → New repository secret** → name `DATABASE_URL`, value =
+your Neon connection string.
+
+## Deploy to Vercel
+
+1. Push this repository to GitHub and **Import** it in Vercel (the build is
+   the default Next.js build).
+2. Add an **Environment Variable** `DATABASE_URL` (your Neon connection
+   string) for the production environment.
+3. Ensure the demo data exists: run `npm run review:job -- --mode once`
+   locally one time (your local and deployed app can share the same Neon DB),
+   or run the GitHub Actions "Database Health & Demo Seed" workflow.
+4. Deploy → open your site at `/restaurant/1`.
+
+## Configuration
+
+| Variable | Where | Required |
+|---|---|---|
+| `DATABASE_URL` | `.env.local` (local) / Vercel env (prod) / GitHub secret (Actions) | Yes — the only secret |
+
+## Removing the demo data
+
+The demo rows are ordinary rows in your database. To start clean LATER without
+recreating the schema:
+
+```bash
+npx tsx -e "const {neon}=require('@neondatabase/serverless');const s=neon(process.env.DATABASE_URL!);(async()=>{await s\`DELETE FROM reviews\`;await s\`DELETE FROM restaurants\`})()"
+```
+
+(Or just use `npm run db:setup` for a full destructive reset.)
+
+## Contributing
+
+- Keep the **avg computed fresh, not stored** — that property is the point.
+- Keep **validation server-side** (rating/comment/restaurant checks) on any
+  new write path.
+- Never make `review-job.ts` destructive — a separate `--force-reset` belongs
+  in `db-setup.ts`, not the scheduler.
+- This is a deliberately small, portable demo — resist framework sprawl.
+
+---
+
+Built by [Sarthak Singh](https://github.com/sarthak0050) as a learning build of
+the core Zomato review loop — Next.js · TypeScript · Neon.
+This project was bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).

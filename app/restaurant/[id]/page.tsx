@@ -1,8 +1,7 @@
 import Link from 'next/link';
-import { neon } from '@neondatabase/serverless';
 import { notFound } from 'next/navigation';
 
-const sql = neon(process.env.DATABASE_URL!);
+import { getDb } from '@/lib/db';
 
 export default async function RestaurantPage({
   params,
@@ -11,6 +10,8 @@ export default async function RestaurantPage({
 }) {
   const { id } = await params;
   const restaurantId = parseInt(id, 10);
+
+  const sql = getDb();
 
   // Check if restaurant exists
   const restaurants = await sql`SELECT * FROM restaurants WHERE id = ${restaurantId}`;

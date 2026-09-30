@@ -19,13 +19,15 @@
  *   2   check mode: an issue was found that `--mode once` would fix
  */
 
-import { neon } from '@neondatabase/serverless';
+import { neon, type NeonQueryFunction } from '@neondatabase/serverless';
 import { config } from 'dotenv';
 import { resolve } from 'path';
 
 config({ path: resolve(__dirname, '../.env.local') });
 
 const DATABASE_URL = process.env.DATABASE_URL;
+
+type Sql = NeonQueryFunction<false, false>;
 
 const DEMO_RESTAURANTS = [
   {
@@ -78,7 +80,7 @@ function getSql() {
   return neon(DATABASE_URL);
 }
 
-async function tableExists(sql: ReturnType<typeof neon>, table: string): Promise<boolean> {
+async function tableExists(sql: Sql, table: string): Promise<boolean> {
   const rows = await sql`
     SELECT 1 FROM information_schema.tables
     WHERE table_schema = 'public' AND table_name = ${table}
@@ -93,7 +95,7 @@ interface Health {
   issues: string[];
 }
 
-async function checkHealth(sql: ReturnType<typeof neon>): Promise<Health> {
+async function checkHealth(sql: Sql): Promise<Health> {
   const reviewsExist = await tableExists(sql, 'reviews');
   const restaurantsExist = await tableExists(sql, 'restaurants');
   const tablesReady = reviewsExist && restaurantsExist;
@@ -132,7 +134,7 @@ function printHealth(health: Health): void {
   }
 }
 
-async function ensureSchema(sql: ReturnType<typeof neon>): Promise<void> {
+async function ensureSchema(sql: Sql): Promise<void> {
   console.log('Creating restaurants table if missing…');
   await sql`
     CREATE TABLE IF NOT EXISTS restaurants (
@@ -154,7 +156,7 @@ async function ensureSchema(sql: ReturnType<typeof neon>): Promise<void> {
   `;
 }
 
-async function seedDemo(sql: ReturnType<typeof neon>): Promise<void> {
+async function seedDemo(sql: Sql): Promise<void> {
   const [rRes] = await sql`SELECT COUNT(*)::int AS count FROM restaurants`;
   if (rRes.count === 0) {
     console.log('Seeding demo restaurant (Ludhiana Burrito)…');
@@ -182,7 +184,7 @@ async function seedDemo(sql: ReturnType<typeof neon>): Promise<void> {
   }
 }
 
-async function runOnce(sql: ReturnType<typeof neon>): Promise<void> {
+async function runOnce(sql: Sql): Promise<void> {
   const health = await checkHealth(sql);
   printHealth(health);
 
@@ -200,7 +202,7 @@ async function runOnce(sql: ReturnType<typeof neon>): Promise<void> {
 }
 
 async function runDaemon(
-  sql: ReturnType<typeof neon>,
+  sql: Sql,
   intervalMinutes: number,
 ): Promise<never> {
   const intervalMs = Math.max(30, intervalMinutes * 60 * 1000);
@@ -234,7 +236,7 @@ async function main(argv: string[]): Promise<number> {
     return 1;
   }
 
-  let sql: ReturnType<typeof neon>;
+  let sql: Sql;
   try {
     sql = getSql();
   } catch (error) {

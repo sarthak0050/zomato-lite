@@ -1,12 +1,13 @@
-import { neon } from '@neondatabase/serverless';
 import { NextResponse } from 'next/server';
 
-const sql = neon(process.env.DATABASE_URL!);
+import { getDb } from '@/lib/db';
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { restaurantId, rating, comment } = body;
+
+    const sql = getDb();
 
     // Check 1: rating is an integer from 1 to 5
     if (!Number.isInteger(rating) || rating < 1 || rating > 5) {

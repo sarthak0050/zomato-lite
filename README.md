@@ -4,6 +4,10 @@ A minimal, working **restaurant + reviews** app that proves the core of
 Zomato's product loop in a few hundred lines: *a restaurant page → its
 rating and reviews → write your own review → it appears instantly.*
 
+The UI follows Zomato's visual language — signature red, warm off-white
+canvas, card-based layout, star ratings — with no UI library and no extra
+dependencies.
+
 Built with **Next.js (App Router), TypeScript, Tailwind CSS v4, and Neon
 serverless Postgres**. No external review APIs, no auth, no complexity — just
 the review experience, done honestly.
@@ -33,13 +37,18 @@ the review experience, done honestly.
 
 ## What it does (features)
 
-- **Restaurant page** (`/restaurant/[id]`) — header, big average rating with
-  review count, the **latest review highlighted**, then older reviews in
-  reverse-chronological order, and a working empty state ("No reviews yet. Be
-  the first!").
-- **Write a review** (`/review/[restaurantId]`) — 1–5 star picker + comment,
-  client-side submit gating, inline error handling, redirect back to the
-  restaurant page on success.
+- **Restaurant page** (`/restaurant/[id]`) — red/orange gradient hero, a
+  **rating card** (big average, 5-star row, review count), the **latest review
+  highlighted** with stars and a formatted date, then older reviews in a
+  divided card, plus a friendly empty state ("No reviews yet · Be the first").
+- **Write a review** (`/review/[restaurantId]`) — 1–5 star picker with a
+  caption (Poor → Excellent), comment box with a 500-char counter, submit
+  gating, an error alert box, and a redirect back to the restaurant page on
+  success.
+- **Zomato-style app shell** — sticky header with the red "Z" logo and nav,
+  plus a footer, shared by every page via `app/layout.tsx`.
+- **Home page** — hero with a tagline, a "Zomato Lite" badge, a red
+  call-to-action into the demo restaurant, and two trust badges.
 - **Average rating computed fresh, never stored** — `AVG(rating)` runs on
   every request, so the number can never go stale or out of sync.
 - **Server-side API** handing back exactly what the page needs:
@@ -50,6 +59,8 @@ the review experience, done honestly.
   restaurant must exist).
 - **Neon serverless Postgres** — connects straight from the edge; no local
   database server to babysit.
+- **Lazy DB client** (`lib/db.ts`) — the connection is created on first
+  request, so `next build` works without a live database.
 - **Health + demo seeding scheduler** — a non-destructive job keeps the schema
   and demo data present (weekly via GitHub Actions).
 
@@ -63,6 +74,8 @@ the review experience, done honestly.
 | **`UNIQUE`-free, append-only reviews** | Reviews are immutable once written — no edit/delete in scope |
 | **SQL seed via an idempotent script, destructive setup as a separate script** | `db:setup` = fresh start (drops tables); `review-job` = never destroys data |
 | **Neon serverless driver** | Same `neon()` template-tag API everywhere — setup script, API routes, and the scheduler |
+| **Lazy, cached client in `lib/db.ts`** | Module-scope `neon()` crashed `next build` when `DATABASE_URL` was absent; deferring to first use keeps builds green and yields one clear runtime error |
+| **Zomato-like visual language (`#E23744` red, warm `#F7F6F2` canvas, cards + soft rings)** | Familiar, appetising design that reads as a real food app — without pulling in a UI library |
 | **Next.js App Router, RSC by default** | Data is fetched server-side; the review form is the only client component |
 
 ## Data model
@@ -82,7 +95,9 @@ is unreal"* ★5, *"Good, but slow service"* ★4, *"Solid. Would repeat."* ★4
 ```
 .
 ├── app/
-│   ├── page.tsx                        # home → link to /restaurant/1
+│   ├── layout.tsx                      # shared shell: header, nav, footer
+│   ├── globals.css                     # Tailwind + theme tokens
+│   ├── page.tsx                        # home hero → link to /restaurant/1
 │   ├── restaurant/[id]/page.tsx        # restaurant page (server component)
 │   ├── review/[restaurantId]/page.tsx  # write-a-review form (client component)
 │   └── api/
@@ -90,6 +105,8 @@ is unreal"* ★5, *"Good, but slow service"* ★4, *"Solid. Would repeat."* ★4
 │       └── restaurants/[id]/route.ts   # GET /api/restaurants/:id
 ├── db/
 │   └── schema.sql                      # canonical schema + demo seed (readable copy)
+├── lib/
+│   └── db.ts                           # lazy, cached Neon client (build-safe)
 ├── scripts/
 │   ├── db-setup.ts                     # DESTRUCTIVE fresh-start setup (drops tables)
 │   └── review-job.ts                   # NON-destructive health + seed scheduler
@@ -104,8 +121,8 @@ is unreal"* ★5, *"Good, but slow service"* ★4, *"Solid. Would repeat."* ★4
 | Layer | Choice | Why |
 |---|---|---|
 | Framework | Next.js App Router (TypeScript) | RSC-first data fetching, file-based API routes |
-| UI | React 19 + Tailwind CSS v4 | Warm, neutral design system (Zomato-ish `#C45D3E` / `#FAFAF8`), zero UI lib |
-| Database | Postgres via **Neon serverless** | `@neondatabase/serverless` — one `neon(DATABASE_URL)` call, edge-safe |
+| UI | React 19 + Tailwind CSS v4 | Zomato-style design system (`#E23744` red, warm `#F7F6F2` canvas, cards + soft rings), zero UI lib |
+| Database | Postgres via **Neon serverless** | `@neondatabase/serverless` — one `getDb()` call, edge-safe |
 | Scripting | `tsx` | Run TypeScript DB scripts without a build step |
 | Env | `dotenv` + `.env.local` | Local creds stay out of git (`.env*` ignored) |
 | Scheduler | `review-job.ts` + GitHub Actions cron | Weekly, non-destructive demo-data health |
@@ -235,9 +252,13 @@ npx tsx -e "const {neon}=require('@neondatabase/serverless');const s=neon(proces
 - Keep the **avg computed fresh, not stored** — that property is the point.
 - Keep **validation server-side** (rating/comment/restaurant checks) on any
   new write path.
+- Keep DB access going through **`getDb()` in `lib/db.ts`** — constructing
+  `neon()` at module scope breaks `next build` without a `DATABASE_URL`.
 - Never make `review-job.ts` destructive — a separate `--force-reset` belongs
   in `db-setup.ts`, not the scheduler.
 - This is a deliberately small, portable demo — resist framework sprawl.
+- Match the Zomato palette (`#E23744` red, warm neutrals, card + ring
+  patterns) so new screens look native to the app.
 
 ---
 

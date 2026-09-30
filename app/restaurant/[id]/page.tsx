@@ -61,73 +61,145 @@ export default async function RestaurantPage({
   }
 
   return (
-    <div className="min-h-screen bg-[#FAFAF8] flex items-start justify-center px-4 pt-16">
-      <div className="w-full max-w-[560px]">
-        {/* Restaurant header */}
-        <h1 className="text-2xl font-semibold text-[#1A1A1A]">
-          {restaurant.name}
-        </h1>
-        <p className="text-sm text-[#6B6B6B] mt-1">
-          {restaurant.cuisine} · {restaurant.area}
-        </p>
-
-        {/* Average rating — big, first thing your eye lands on */}
-        <div className="mt-8 flex items-baseline gap-2">
-          <span className="text-5xl font-bold text-[#1A1A1A]">
-            {averageRating !== null ? averageRating : '—'}
-          </span>
-          <span className="text-sm text-[#6B6B6B]">
-            {totalReviews} {totalReviews === 1 ? 'review' : 'reviews'}
-          </span>
+    <div className="bg-[#F7F6F2] py-8 px-4">
+      <div className="mx-auto w-full max-w-3xl space-y-6">
+        <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-[#E8E6DE]">
+          <div className="h-28 sm:h-32 bg-gradient-to-r from-[#E23744] to-[#FF7A45]" />
+          <div className="-mt-10 px-6 pb-6 sm:px-8">
+            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#111111]">
+                  {restaurant.name}
+                </h1>
+                <p className="mt-1 text-sm text-[#6B6B6B]">
+                  {restaurant.cuisine} · {restaurant.area}
+                </p>
+              </div>
+              <div className="flex items-center gap-3 rounded-xl bg-white px-4 py-3 shadow-sm ring-1 ring-[#E8E6DE] self-start sm:self-auto">
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-[#111111] leading-none">
+                    {averageRating !== null ? averageRating.toFixed(1) : '—'}
+                  </div>
+                  <div className="mt-1 flex items-center justify-center gap-0.5" aria-hidden>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <span
+                        key={star}
+                        className={`text-[11px] leading-none ${
+                          averageRating !== null && star <= Math.round(averageRating)
+                            ? 'text-[#E23744]'
+                            : 'text-[#DCD9CF]'
+                        }`}
+                      >
+                        ★
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="h-9 w-px bg-[#E8E6DE]" />
+                <div className="text-sm text-[#6B6B6B]">
+                  <span className="block font-semibold text-[#111111] text-base leading-none">
+                    {totalReviews}
+                  </span>
+                  <span className="mt-1 block">
+                    {totalReviews === 1 ? 'review' : 'reviews'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Latest review — highlighted */}
+        <Link
+          href={`/review/${restaurantId}`}
+          className="flex items-center justify-center gap-2 rounded-full bg-[#E23744] px-5 py-3 text-white shadow-sm transition-all hover:bg-[#D12C39] hover:shadow-md active:scale-[0.995]"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+          </svg>
+          Write a review
+        </Link>
+
         {latestReview && (
-          <div className="mt-10 p-5 rounded-xl bg-white border border-[#E5E5E2]">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs font-medium text-[#C45D3E] bg-[#FEF3EE] px-2 py-0.5 rounded">
+          <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-[#E8E6DE]">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FFF1EE] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#E23744]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#E23744]" />
                 Latest
               </span>
-              <span className="text-sm font-medium text-[#1A1A1A]">
-                {latestReview.rating}.0
+              <span className="text-sm text-[#6B6B6B]">
+                {new Date(latestReview.createdAt).toLocaleDateString('en-IN', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                })}
               </span>
             </div>
-            <p className="text-[#1A1A1A]">{latestReview.comment}</p>
+            <div className="mb-2 flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <span
+                  key={star}
+                  className={`text-sm leading-none ${
+                    star <= latestReview.rating ? 'text-[#E23744]' : 'text-[#DCD9CF]'
+                  }`}
+                >
+                  ★
+                </span>
+              ))}
+            </div>
+            <p className="text-[#111111] leading-relaxed">{latestReview.comment}</p>
           </div>
         )}
 
-        {/* Older reviews */}
         {reviews.length > 0 && (
-          <div className="mt-6 space-y-4">
+          <div className="rounded-2xl bg-white shadow-sm ring-1 ring-[#E8E6DE] divide-y divide-[#F0EEE7]">
             {reviews.map((review) => (
-              <div key={review.id} className="py-4 border-b border-[#EFEFEC]">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-sm font-medium text-[#1A1A1A]">
-                    {review.rating}.0
+              <div key={review.id} className="p-6">
+                <div className="mb-2 flex items-center justify-between">
+                  <div className="flex items-center gap-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <span
+                        key={star}
+                        className={`text-sm leading-none ${
+                          star <= review.rating ? 'text-[#E23744]' : 'text-[#DCD9CF]'
+                        }`}
+                      >
+                        ★
+                      </span>
+                    ))}
+                  </div>
+                  <span className="text-xs text-[#6B6B6B]">
+                    {new Date(review.createdAt).toLocaleDateString('en-IN', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                    })}
                   </span>
                 </div>
-                <p className="text-[#1A1A1A]">{review.comment}</p>
+                <p className="text-[#111111] leading-relaxed">{review.comment}</p>
               </div>
             ))}
           </div>
         )}
 
-        {/* Empty state */}
         {totalReviews === 0 && (
-          <div className="mt-10 text-center">
-            <p className="text-[#6B6B6B] mb-4">No reviews yet. Be the first!</p>
+          <div className="rounded-2xl border border-dashed border-[#DCD9CF] bg-white/60 py-12 text-center">
+            <div className="mx-auto mb-3 h-12 w-12 rounded-full bg-[#F1EFE8] grid place-items-center text-xl">
+              🍽️
+            </div>
+            <p className="font-medium text-[#111111]">No reviews yet</p>
+            <p className="mt-1 text-sm text-[#6B6B6B]">Be the first to share your experience.</p>
           </div>
         )}
-
-        {/* Link to write a review */}
-        <div className="mt-10 mb-16">
-          <Link
-            href={`/review/${restaurantId}`}
-            className="block w-full py-3 rounded-lg font-medium text-white text-center bg-[#C45D3E] hover:bg-[#B3512F] transition-colors"
-          >
-            Write a review
-          </Link>
-        </div>
       </div>
     </div>
   );

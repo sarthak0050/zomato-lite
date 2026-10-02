@@ -12,7 +12,7 @@ name: Database Health & Demo Seed
 
 on:
   schedule:
-    - cron: "0 6 * * 1"
+    - cron: '37 6 * * 1' # Mondays, 06:37 UTC
   workflow_dispatch:
 
 concurrency:

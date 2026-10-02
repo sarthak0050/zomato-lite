@@ -209,7 +209,7 @@ empty — so it is safe to run against a live database that already has real dat
 
 ## Scheduler: demo-data health & weekly cron
 
-`.github/workflows/db-health.yml` runs **every Monday 06:00 UTC** (and on
+`.github/workflows/db-health.yml` runs **every Monday 06:37 UTC** (and on
 manual "Run workflow"): it installs dependencies and runs
 `npx tsx scripts/review-job.ts --mode once` with `DATABASE_URL` from the repo
 secret. The effect lives in the database (no commit-back needed); a red run

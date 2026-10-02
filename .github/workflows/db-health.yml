@@ -1,7 +1,7 @@
 name: Database Health & Demo Seed
 
 # Keeps the Zomato Lite database healthy and the demo dataset present.
-# - Runs weekly (Mon 06:00 UTC) and on demand via "Run workflow".
+# - Runs weekly (Mon 06:37 UTC) and on demand via "Run workflow".
 # - Connects with DATABASE_URL (repo secret), verifies the schema, and
 #   idempotently seeds the demo restaurant/reviews only when they are missing
 #   (it never drops tables or touches user-written reviews).

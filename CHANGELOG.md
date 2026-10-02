@@ -5,6 +5,8 @@
 
 ## Full history (no tag, fewer than 30 commits)
 
+- 2026-10-02 `43aee2b` ci: attribute automated commits to the repo owner when PAT_TOKEN is set
+- 2026-10-02 `e5de9a3` docs: add weekly changelog automation and initial CHANGELOG.md
 - 2026-10-02 `c4ee70b` ci: stagger weekly scheduler to avoid top-of-hour congestion
 - 2026-09-30 `db6293a` Update README for Zomato-style UI redesign and lazy DB client
 - 2026-09-30 `e8b12ed` Redesign UI with Zomato-style layout, cards, star ratings, and header/footer
